@@ -33,10 +33,24 @@ impl Lexer {
         self.skip_whitespace();
 
         let tok = match self.ch {
-            b'=' => Token::Assign,
+            b'=' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::Eq
+                } else {
+                    Token::Assign
+                }
+            }
             b'+' => Token::Plus,
             b'-' => Token::Minus,
-            b'!' => Token::Bang,
+            b'!' => {
+                if self.peek_char() == b'=' {
+                    self.read_char();
+                    Token::NotEq
+                } else {
+                    Token::Bang
+                }
+            }
             b'*' => Token::Asterisk,
             b'/' => Token::Slash,
             b'<' => Token::Lt,
@@ -48,6 +62,10 @@ impl Lexer {
             b'{' => Token::LBrace,
             b'}' => Token::RBrace,
             0 => Token::Eof,
+            b'"' => {
+                let s = self.read_string();
+                return Token::StringLiteral(s);
+            }
             c if is_letter(c) => {
                 let ident = self.read_identifier();
                 return lookup_ident(&ident);
@@ -85,6 +103,25 @@ impl Lexer {
         }
         self.input[start..self.position].to_string()
     }
+
+    fn peek_char(&self) -> u8 {
+        if self.read_position >= self.input.len() {
+            0
+        } else {
+            self.input.as_bytes()[self.read_position]
+        }
+    }
+
+    fn read_string(&mut self) -> String {
+        self.read_char();
+        let start = self.position;
+        while self.ch != b'"' && self.ch != 0 {
+            self.read_char();
+        }
+        let s = self.input[start..self.position].to_string();
+        self.read_char();
+        s
+    }
 }
 
 fn is_letter(ch: u8) -> bool {
@@ -93,4 +130,142 @@ fn is_letter(ch: u8) -> bool {
 
 fn is_digit(ch: u8) -> bool {
     (b'0'..=b'9').contains(&ch)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_tokens(input: &str, expected: Vec<Token>) {
+        let mut lexer = Lexer::new(input.to_string());
+        for (i, exp) in expected.iter().enumerate() {
+            let tok = lexer.next_token();
+            assert_eq!(&tok, exp, "test[{}] - tok wrong", i);
+        }
+    }
+
+    #[test]
+    fn next_token_with_symbols() {
+        let input = "=+(){},;";
+
+        let expected = vec![
+            Token::Assign,
+            Token::Plus,
+            Token::LParen,
+            Token::RParen,
+            Token::LBrace,
+            Token::RBrace,
+            Token::Comma,
+            Token::Semicolon,
+            Token::Eof,
+        ];
+
+        assert_tokens(input, expected);
+    }
+
+    #[test]
+    fn next_token_with_full_program() {
+        let input = r#"let five = 5;
+        let ten = 10;
+
+        let add = fn(x, y) {
+            x + y;
+        }
+
+        let result = add(five, ten);
+        !-/*5;
+        5 < 10 > 5;
+
+        if (5 < 10) {
+            return true;
+        } else {
+            return false;
+        }
+
+        10 == 10;
+        10 != 9;
+        "foobar"
+        "foo bar"
+        "#;
+
+        let expected = vec![
+            Token::Let,
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int(5),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("ten".to_string()),
+            Token::Assign,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("add".to_string()),
+            Token::Assign,
+            Token::Function,
+            Token::LParen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::RParen,
+            Token::LBrace,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Let,
+            Token::Ident("result".to_string()),
+            Token::Assign,
+            Token::Ident("add".to_string()),
+            Token::LParen,
+            Token::Ident("five".to_string()),
+            Token::Comma,
+            Token::Ident("ten".to_string()),
+            Token::RParen,
+            Token::Semicolon,
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int(5),
+            Token::Semicolon,
+            Token::Int(5),
+            Token::Lt,
+            Token::Int(10),
+            Token::Gt,
+            Token::Int(5),
+            Token::Semicolon,
+            Token::If,
+            Token::LParen,
+            Token::Int(5),
+            Token::Lt,
+            Token::Int(10),
+            Token::RParen,
+            Token::LBrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Else,
+            Token::LBrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::RBrace,
+            Token::Int(10),
+            Token::Eq,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Int(10),
+            Token::NotEq,
+            Token::Int(9),
+            Token::Semicolon,
+            Token::StringLiteral("foobar".to_string()),
+            Token::StringLiteral("foo bar".to_string()),
+            Token::Eof,
+        ];
+
+        assert_tokens(input, expected);
+    }
 }
