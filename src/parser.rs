@@ -1,15 +1,18 @@
+use std::vec;
+
 use crate::{
     ast::{Expression, Program, Statement},
     lexer::Lexer,
     token::Token,
 };
 
+/// 演算子の優先度。数値が大きいほど優先度が高い（* > + など）
 enum Precedence {
-    Lowest,
-    Equals,
-    LessGreater,
-    Sum,
-    Product,
+    Lowest,      // 0: デフォルト
+    Equals,      // 1: ==, !=
+    LessGreater, // 2: <, >
+    Sum,         // 3: +, -
+    Product,     // 4: *, /
 }
 
 impl Precedence {
@@ -24,6 +27,7 @@ impl Precedence {
     }
 }
 
+/// トークンに対応する優先度を返す
 fn token_precedence(token: &Token) -> Precedence {
     match token {
         Token::Eq | Token::NotEq => Precedence::Equals,
@@ -34,14 +38,16 @@ fn token_precedence(token: &Token) -> Precedence {
     }
 }
 
+/// トークン列をASTに変換する構文解析器
 pub struct Parser {
     lexer: Lexer,
-    current_token: Token,
-    peek_token: Token,
-    errors: Vec<String>,
+    current_token: Token, // 現在見ているトークン
+    peek_token: Token,    // 1つ先読みしているトークン
+    errors: Vec<String>,  // パースエラーを貯める（最初のエラーで止めない）
 }
 
 impl Parser {
+    /// Lexerを受け取ってParserを初期化する。current_token/peek_tokenを1つずつ先に読み込んでおく
     pub fn new(mut lexer: Lexer) -> Self {
         let current_token = lexer.next_token();
         let peek_token = lexer.next_token();
@@ -58,6 +64,7 @@ impl Parser {
         self.peek_token = self.lexer.next_token();
     }
 
+    /// エントリポイント。EOFまで文を読み続けてProgramを返す
     pub fn parse_program(&mut self) -> Program {
         let mut statements = Vec::new();
 
@@ -71,6 +78,7 @@ impl Parser {
         Program { statements }
     }
 
+    /// current_tokenを見てどのパーサーを呼ぶか振り分けるディスパッチャー
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
@@ -101,10 +109,11 @@ impl Parser {
 
         Some(Statement::Let {
             name,
-            value: Expression::IntegerLiteral(5),
+            value: Expression::IntegerLiteral(5), // TODO: 実際の式パースに置き換える
         })
     }
 
+    /// peek_tokenが期待通りなら進めてtrue、違ったらエラーを貯めてfalse
     fn expect_peek(&mut self, expected: Token) -> bool {
         if self.peek_token == expected {
             self.next_token();
@@ -130,7 +139,7 @@ impl Parser {
             self.next_token();
         }
 
-        Some(Statement::Return(Expression::IntegerLiteral(5)))
+        Some(Statement::Return(Expression::IntegerLiteral(5))) // TODO: 実際の式パースに置き換える
     }
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
@@ -143,6 +152,7 @@ impl Parser {
         Some(Statement::ExpressionStmt(expr))
     }
 
+    /// PrattParserの核心。prefixをパースしてから、優先度が高いinfixがあればループで取り込む
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
         let mut left = match &self.current_token {
             Token::Ident(s) => Some(Expression::Identifier(s.clone())),
@@ -162,6 +172,7 @@ impl Parser {
                 })
             }
             Token::If => self.parse_if_expression(),
+            Token::Function => self.parse_function_literal(),
             Token::True => Some(Expression::BooleanLiteral(true)),
             Token::False => Some(Expression::BooleanLiteral(false)),
             _ => None,
@@ -177,13 +188,14 @@ impl Parser {
         Some(left)
     }
 
+    /// 左辺を受け取って演算子と右辺をパースしInfixノードを返す
     fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
         let op = match &self.current_token {
             Token::Plus => "+".to_string(),
             Token::Minus => "-".to_string(),
             Token::Asterisk => "*".to_string(),
             Token::Slash => "/".to_string(),
-            Token::Eq => "=".to_string(),
+            Token::Eq => "==".to_string(),
             Token::NotEq => "!=".to_string(),
             Token::Lt => "<".to_string(),
             Token::Gt => ">".to_string(),
@@ -246,5 +258,44 @@ impl Parser {
             consequence,
             alternative,
         })
+    }
+
+    fn parse_function_literal(&mut self) -> Option<Expression> {
+        if !self.expect_peek(Token::LParen) {
+            return None;
+        }
+
+        let mut parameters = vec![];
+        if self.peek_token != Token::RParen {
+            self.next_token();
+            if let Token::Ident(s) = &self.current_token {
+                parameters.push(s.clone());
+            }
+            while self.peek_token == Token::Comma {
+                self.next_token();
+                self.next_token();
+                if let Token::Ident(s) = &self.current_token {
+                    parameters.push(s.clone());
+                }
+            }
+        }
+        if !self.expect_peek(Token::RParen) {
+            return None;
+        }
+
+        if !self.expect_peek(Token::LBrace) {
+            return None;
+        }
+
+        self.next_token();
+        let mut body = vec![];
+        while self.current_token != Token::RBrace && self.current_token != Token::Eof {
+            if let Some(stmt) = self.parse_statement() {
+                body.push(stmt)
+            }
+            self.next_token();
+        }
+
+        Some(Expression::FunctionLiteral { parameters, body })
     }
 }

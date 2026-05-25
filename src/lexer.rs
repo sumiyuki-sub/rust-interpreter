@@ -1,13 +1,15 @@
 use crate::token::{Token, lookup_ident};
 
+/// 入力文字列をトークン列に変換する字句解析器
 pub struct Lexer {
     input: String,
-    position: usize,
-    read_position: usize,
-    ch: u8,
+    position: usize,      // 現在読んでいる位置
+    read_position: usize, // 次に読む位置
+    ch: u8,               // 現在の文字
 }
 
 impl Lexer {
+    /// 新しいLexerを作る。最初の1文字を読み込んでおく
     pub fn new(input: String) -> Self {
         let mut lexer = Lexer {
             input,
@@ -19,6 +21,7 @@ impl Lexer {
         lexer
     }
 
+    /// positionを1つ進めてchを更新する。read_positionあその1つ先を指す
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = 0;
@@ -29,6 +32,7 @@ impl Lexer {
         self.read_position += 1;
     }
 
+    /// 現在の文字からトークンを1つ読み取って返す
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
@@ -82,12 +86,14 @@ impl Lexer {
         tok
     }
 
+    /// 空白を読み飛ばす
     fn skip_whitespace(&mut self) {
         while matches!(self.ch, b' ' | b'\t' | b'\n' | b'\r') {
             self.read_char();
         }
     }
 
+    /// 識別子を最後まで読む
     fn read_identifier(&mut self) -> String {
         let start = self.position;
         while is_letter(self.ch) {
@@ -96,6 +102,7 @@ impl Lexer {
         self.input[start..self.position].to_string()
     }
 
+    /// 数字を最後まで読む
     fn read_number(&mut self) -> String {
         let start = self.position;
         while is_digit(self.ch) {
@@ -104,6 +111,7 @@ impl Lexer {
         self.input[start..self.position].to_string()
     }
 
+    /// 次の文字を先読みする（位置は進めない）
     fn peek_char(&self) -> u8 {
         if self.read_position >= self.input.len() {
             0
@@ -112,6 +120,7 @@ impl Lexer {
         }
     }
 
+    /// 文字列リテラルを読む
     fn read_string(&mut self) -> String {
         self.read_char();
         let start = self.position;

@@ -4,7 +4,7 @@ mod parser;
 mod token;
 
 fn main() {
-    let input = "if (x > 5) { x } else { 5 }".to_string();
+    let input = "fn(x, y) { x + y }".to_string();
     let lexer = lexer::Lexer::new(input);
     let mut parser = parser::Parser::new(lexer);
     let program = parser.parse_program();
