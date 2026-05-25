@@ -14,4 +14,19 @@ pub enum Statement {
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(i64),
+    Prefix {
+        operator: String,
+        right: Box<Expression>,
+    },
+    Infix {
+        left: Box<Expression>,
+        operator: String,
+        right: Box<Expression>,
+    },
+    BooleanLiteral(bool),
+    If {
+        condition: Box<Expression>,
+        consequence: Vec<Statement>,
+        alternative: Option<Vec<Statement>>,
+    },
 }
