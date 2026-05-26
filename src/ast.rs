@@ -39,4 +39,8 @@ pub enum Expression {
         parameters: Vec<String>,
         body: Vec<Statement>,
     },
+    Call {
+        function: Box<Expression>,
+        arguments: Vec<Expression>,
+    },
 }

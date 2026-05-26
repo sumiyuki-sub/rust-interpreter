@@ -13,6 +13,7 @@ enum Precedence {
     LessGreater, // 2: <, >
     Sum,         // 3: +, -
     Product,     // 4: *, /
+    Call,        // 5: (
 }
 
 impl Precedence {
@@ -23,6 +24,7 @@ impl Precedence {
             Precedence::LessGreater => 2,
             Precedence::Sum => 3,
             Precedence::Product => 4,
+            Precedence::Call => 5,
         }
     }
 }
@@ -34,6 +36,7 @@ fn token_precedence(token: &Token) -> Precedence {
         Token::Lt | Token::Gt => Precedence::LessGreater,
         Token::Plus | Token::Minus => Precedence::Sum,
         Token::Asterisk | Token::Slash => Precedence::Product,
+        Token::LParen => Precedence::Call,
         _ => Precedence::Lowest,
     }
 }
@@ -182,7 +185,10 @@ impl Parser {
             && precedence.value() < token_precedence(&self.peek_token).value()
         {
             self.next_token();
-            left = self.parse_infix_expression(left)?;
+            left = match self.current_token {
+                Token::LParen => self.parse_call_expression(left)?,
+                _ => self.parse_infix_expression(left)?,
+            };
         }
 
         Some(left)
@@ -297,5 +303,30 @@ impl Parser {
         }
 
         Some(Expression::FunctionLiteral { parameters, body })
+    }
+
+    fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
+        let mut arguments = vec![];
+
+        if self.peek_token != Token::RParen {
+            self.next_token();
+
+            arguments.push(self.parse_expression(Precedence::Lowest)?);
+
+            while self.peek_token == Token::Comma {
+                self.next_token();
+                self.next_token();
+                arguments.push(self.parse_expression(Precedence::Lowest)?);
+            }
+        }
+
+        if !self.expect_peek(Token::RParen) {
+            return None;
+        }
+
+        Some(Expression::Call {
+            function: Box::new(function),
+            arguments,
+        })
     }
 }
