@@ -1,5 +1,3 @@
-use std::vec;
-
 use crate::{
     ast::{Expression, Program, Statement},
     lexer::Lexer,
@@ -217,6 +215,7 @@ impl Parser {
         })
     }
 
+    /// if (条件) { consequence } else { alternative } をパースする
     fn parse_if_expression(&mut self) -> Option<Expression> {
         if !self.expect_peek(Token::LParen) {
             return None;
@@ -266,6 +265,7 @@ impl Parser {
         })
     }
 
+    /// fn(params) { body } をパースする
     fn parse_function_literal(&mut self) -> Option<Expression> {
         if !self.expect_peek(Token::LParen) {
             return None;
@@ -305,6 +305,7 @@ impl Parser {
         Some(Expression::FunctionLiteral { parameters, body })
     }
 
+    /// function(args) をパースする。left（関数部分）を受け取って引数リストを組み立てる
     fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
         let mut arguments = vec![];
 

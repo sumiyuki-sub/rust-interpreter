@@ -15,8 +15,8 @@ pub enum Token {
     /// 文字列リテラル 例: "hello"
     StringLiteral(String),
 
-    // 演算子
-    Assign,   // =
+    /// 演算子
+    Assign, // =
     Plus,     // +
     Minus,    // -
     Bang,     // !
@@ -27,7 +27,7 @@ pub enum Token {
     Eq,       // ==
     NotEq,    // !=
 
-    // 区切り文字
+    /// 区切り文字
     Comma,
     Semicolon,
     LParen, // (
@@ -35,7 +35,7 @@ pub enum Token {
     LBrace, // {
     RBrace, // }
 
-    // キーワード
+    /// キーワード
     Function,
     Let,
     True,
