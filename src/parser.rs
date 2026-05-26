@@ -330,3 +330,114 @@ impl Parser {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lexer::Lexer;
+
+    fn parse(input: &str) -> Program {
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        parser.parse_program()
+    }
+
+    #[test]
+    fn let_statement() {
+        let program = parse("let x = 5;");
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0],
+            Statement::Let {
+                name: "x".to_string(),
+                value: Expression::IntegerLiteral(5)
+            }
+        )
+    }
+
+    #[test]
+    fn return_statement() {
+        let program = parse("return 5;");
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0],
+            Statement::Return(Expression::IntegerLiteral(5))
+        )
+    }
+
+    #[test]
+    fn infix_expression() {
+        let program = parse("5 + 3");
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0],
+            Statement::ExpressionStmt(Expression::Infix {
+                left: Box::new(Expression::IntegerLiteral(5)),
+                operator: "+".to_string(),
+                right: Box::new(Expression::IntegerLiteral(3)),
+            })
+        )
+    }
+
+    #[test]
+    fn prefix_expression() {
+        let program = parse("!true");
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0],
+            Statement::ExpressionStmt(Expression::Prefix {
+                operator: "!".to_string(),
+                right: Box::new(Expression::BooleanLiteral(true))
+            })
+        )
+    }
+
+    #[test]
+    fn if_expression() {
+        let program = parse("if (x > 5) { return 5; }");
+
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0],
+            Statement::ExpressionStmt(Expression::If {
+                condition: Box::new(Expression::Infix {
+                    left: Box::new(Expression::Identifier("x".to_string())),
+                    operator: ">".to_string(),
+                    right: Box::new(Expression::IntegerLiteral(5)),
+                }),
+                consequence: vec![Statement::Return(Expression::IntegerLiteral(5))],
+                alternative: None,
+            })
+        )
+    }
+
+    #[test]
+    fn function_expression() {
+        let program = parse("fn(x, y) { x + y };");
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0],
+            Statement::ExpressionStmt(Expression::FunctionLiteral {
+                parameters: vec!["x".to_string(), "y".to_string()],
+                body: vec![Statement::ExpressionStmt(Expression::Infix {
+                    left: Box::new(Expression::Identifier("x".to_string())),
+                    operator: "+".to_string(),
+                    right: Box::new(Expression::Identifier("y".to_string())),
+                })]
+            })
+        )
+    }
+
+    #[test]
+    fn call_expression() {
+        let program = parse("add(2, 3);");
+        assert_eq!(program.statements.len(), 1);
+        assert_eq!(
+            program.statements[0],
+            Statement::ExpressionStmt(Expression::Call {
+                function: Box::new(Expression::Identifier("add".to_string())),
+                arguments: vec![Expression::IntegerLiteral(2), Expression::IntegerLiteral(3)]
+            })
+        )
+    }
+}
