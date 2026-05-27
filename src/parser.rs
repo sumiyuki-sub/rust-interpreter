@@ -104,14 +104,12 @@ impl Parser {
             return None;
         }
 
-        while self.current_token != Token::Semicolon && self.current_token != Token::Eof {
+        self.next_token();
+        let value = self.parse_expression(Precedence::Lowest)?;
+        if self.peek_token == Token::Semicolon {
             self.next_token();
         }
-
-        Some(Statement::Let {
-            name,
-            value: Expression::IntegerLiteral(5), // TODO: 実際の式パースに置き換える
-        })
+        Some(Statement::Let { name, value })
     }
 
     /// peek_tokenが期待通りなら進めてtrue、違ったらエラーを貯めてfalse
@@ -135,12 +133,11 @@ impl Parser {
 
     fn parse_return_statement(&mut self) -> Option<Statement> {
         self.next_token();
-
-        while self.current_token != Token::Semicolon && self.current_token != Token::Eof {
+        let value = self.parse_expression(Precedence::Lowest)?;
+        if self.peek_token == Token::Semicolon {
             self.next_token();
         }
-
-        Some(Statement::Return(Expression::IntegerLiteral(5))) // TODO: 実際の式パースに置き換える
+        Some(Statement::Return(value))
     }
 
     fn parse_expression_statement(&mut self) -> Option<Statement> {
