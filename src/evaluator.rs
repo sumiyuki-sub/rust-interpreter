@@ -60,6 +60,31 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
             consequence,
             alternative,
         } => eval_if(condition, consequence, alternative.as_deref(), env),
+        Expression::FunctionLiteral { parameters, body } => Object::Function {
+            parameters: parameters.clone(),
+            body: body.clone(),
+        },
+        Expression::Call {
+            function,
+            arguments,
+        } => {
+            let func = eval_expression(function, env);
+            let args: Vec<Object> = arguments
+                .iter()
+                .map(|arg| eval_expression(arg, env))
+                .collect();
+            let mut inner_env = Environment::new_enclosed(env.clone());
+
+            match func {
+                Object::Function { parameters, body } => {
+                    for (param, arg) in parameters.iter().zip(args.iter()) {
+                        inner_env.set(param.clone(), arg.clone());
+                    }
+                    eval_block(&body, &mut inner_env)
+                }
+                _ => Object::Null,
+            }
+        }
         _ => Object::Null,
     }
 }
@@ -147,5 +172,32 @@ fn is_truthy(obj: Object) -> bool {
         Object::Null => false,
         Object::Boolean(false) => false,
         _ => true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{lexer::Lexer, parser::Parser};
+
+    use super::*;
+
+    fn eval(input: &str) -> Object {
+        let lexer = Lexer::new(input.to_string());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        let mut env = Environment::new();
+        eval_program(&program, &mut env)
+    }
+
+    #[test]
+    fn function_call() {
+        let result = eval("let add = fn(a, b) { a + b }; add(2, 3)");
+        assert_eq!(result, Object::Integer(5));
+    }
+
+    #[test]
+    fn closure() {
+        let result = eval("let x = 10; let add = fn(a) { a + x }; add(5)");
+        assert_eq!(result, Object::Integer(15))
     }
 }
