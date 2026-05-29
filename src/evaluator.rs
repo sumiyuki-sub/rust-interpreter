@@ -37,9 +37,13 @@ fn eval_statement(stmt: &Statement, env: &mut Environment) -> Object {
 fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
     match expr {
         Expression::IntegerLiteral(n) => Object::Integer(*n),
+        Expression::StringLiteral(s) => Object::String(s.clone()),
         Expression::Identifier(name) => match env.get(name) {
             Some(v) => v,
-            None => Object::Null,
+            None => match get_builtin(name) {
+                Some(builtin) => builtin,
+                None => Object::Null,
+            },
         },
         Expression::BooleanLiteral(b) => Object::Boolean(*b),
         Expression::Prefix { operator, right } => {
@@ -80,13 +84,44 @@ fn eval_expression(expr: &Expression, env: &mut Environment) -> Object {
                     for (param, arg) in parameters.iter().zip(args.iter()) {
                         inner_env.set(param.clone(), arg.clone());
                     }
-                    eval_block(&body, &mut inner_env)
+                    let result = eval_block(&body, &mut inner_env);
+                    match result {
+                        Object::Return(val) => *val,
+                        other => other,
+                    }
                 }
+                Object::Builtin(func) => func(args),
                 _ => Object::Null,
             }
         }
         _ => Object::Null,
     }
+}
+
+fn get_builtin(name: &str) -> Option<Object> {
+    match name {
+        "len" => Some(Object::Builtin(builtin_len)),
+        "puts" => Some(Object::Builtin(builtin_puts)),
+        _ => None,
+    }
+}
+
+fn builtin_len(args: Vec<Object>) -> Object {
+    if args.len() != 1 {
+        return Object::Null;
+    }
+
+    match &args[0] {
+        Object::String(s) => Object::Integer(s.len() as i64),
+        _ => Object::Null,
+    }
+}
+
+fn builtin_puts(args: Vec<Object>) -> Object {
+    for arg in args {
+        println!("{}", arg)
+    }
+    Object::Null
 }
 
 fn eval_prefix(operator: &str, right: Object) -> Object {
@@ -199,5 +234,17 @@ mod tests {
     fn closure() {
         let result = eval("let x = 10; let add = fn(a) { a + x }; add(5)");
         assert_eq!(result, Object::Integer(15))
+    }
+
+    #[test]
+    fn return_in_function() {
+        let result = eval("let f = fn() { return 5 }; f() + 1");
+        assert_eq!(result, Object::Integer(6));
+    }
+
+    #[test]
+    fn builtin_len() {
+        let result = eval(r#"len("hello")"#);
+        assert_eq!(result, Object::Integer(5))
     }
 }

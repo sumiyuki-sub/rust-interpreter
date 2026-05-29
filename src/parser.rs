@@ -79,6 +79,10 @@ impl Parser {
         Program { statements }
     }
 
+    pub fn errors(&self) -> &[String] {
+        &self.errors
+    }
+
     /// current_tokenを見てどのパーサーを呼ぶか振り分けるディスパッチャー
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token {
@@ -155,6 +159,7 @@ impl Parser {
         let mut left = match &self.current_token {
             Token::Ident(s) => Some(Expression::Identifier(s.clone())),
             Token::Int(n) => Some(Expression::IntegerLiteral(*n)),
+            Token::StringLiteral(s) => Some(Expression::StringLiteral(s.clone())),
             Token::Bang | Token::Minus => {
                 let op = match &self.current_token {
                     Token::Bang => "!".to_string(),

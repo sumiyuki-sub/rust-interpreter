@@ -20,6 +20,7 @@ pub enum Expression {
     Identifier(String),
     /// 整数リテラル 例: 5, 42
     IntegerLiteral(i64),
+    StringLiteral(String),
     /// 真偽値リテラル 例: true, false
     BooleanLiteral(bool),
     /// 前置演算子 例: !true, -5
